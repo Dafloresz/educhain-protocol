@@ -1,0 +1,15 @@
+{
+  "network": "sepolia",
+  "chainId": 11155111,
+  "deployer": "0x87d43fA8eE7f8d897482DA38C8888b98Cb94fcb7",
+  "deployedAt": "2026-04-17T01:54:26.905Z",
+  "contracts": {
+    "EduToken": "0xb0ba2eDdaAA4750843e46683444C09aC293c65F9",
+    "EduCertificate": "0xaFD415797E236B9Be94b88cfCf0613038b99E894",
+    "EduCourse": "0x7c242b095eF23c6f561d1898F4b4A6AC44A09D8a",
+    "EduStaking": "0xE777dECA02a6fB06EaC86457020e02F2e671a702",
+    "EduGovernance": "0x20B4aeD72AD0c8f366fc3B02DFeea0f025D91F84",
+    "EduPlatform": "0x787261c24E16a8b198b0BBFD79a2ffefF50c1047",
+    "PriceFeed": "0x694AA1769357215DE4FAC081bf1f309aDC325306"
+  }
+}

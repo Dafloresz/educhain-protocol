@@ -1,0 +1,975 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>EduChain — Plataforma de Estudos Web3</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
+<style>
+  :root {
+    --bg:       #0a0a0f;
+    --surface:  #111118;
+    --border:   #1e1e2e;
+    --accent:   #7c3aed;
+    --accent2:  #06b6d4;
+    --gold:     #f59e0b;
+    --green:    #10b981;
+    --red:      #ef4444;
+    --text:     #e2e8f0;
+    --muted:    #64748b;
+    --radius:   12px;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── Background grid ── */
+  body::before {
+    content: '';
+    position: fixed; inset: 0; z-index: 0;
+    background-image:
+      linear-gradient(rgba(124,58,237,.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(124,58,237,.04) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+  }
+
+  /* ── Glow orbs ── */
+  .orb {
+    position: fixed; border-radius: 50%; filter: blur(80px); pointer-events: none; z-index: 0;
+  }
+  .orb1 { width:400px; height:400px; background:rgba(124,58,237,.15); top:-100px; right:-100px; }
+  .orb2 { width:300px; height:300px; background:rgba(6,182,212,.10); bottom:100px; left:-80px; }
+
+  /* ── Layout ── */
+  .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; position: relative; z-index: 1; }
+
+  /* ── Header ── */
+  header {
+    border-bottom: 1px solid var(--border);
+    backdrop-filter: blur(20px);
+    background: rgba(10,10,15,.8);
+    position: sticky; top: 0; z-index: 100;
+  }
+  .header-inner {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 24px; max-width: 1200px; margin: 0 auto;
+  }
+  .logo {
+    font-size: 1.4rem; font-weight: 800; letter-spacing: -0.02em;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .logo span { font-family: 'Space Mono', monospace; font-style: italic; }
+
+  #connect-btn {
+    font-family: 'Space Mono', monospace; font-size: .8rem;
+    background: linear-gradient(135deg, var(--accent), #5b21b6);
+    border: none; color: #fff; padding: 10px 20px; border-radius: 8px;
+    cursor: pointer; transition: all .2s; letter-spacing: .05em;
+  }
+  #connect-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 20px rgba(124,58,237,.4); }
+  #connect-btn.connected {
+    background: linear-gradient(135deg, var(--green), #059669);
+  }
+
+  /* ── Status bar ── */
+  #status-bar {
+    display: none; align-items: center; gap: 12px;
+    background: rgba(16,185,129,.08); border: 1px solid rgba(16,185,129,.2);
+    border-radius: 8px; padding: 10px 16px; margin: 16px 0;
+    font-family: 'Space Mono', monospace; font-size: .78rem;
+  }
+  #status-bar.visible { display: flex; }
+  .dot { width:8px; height:8px; border-radius:50%; background:var(--green); animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+  /* ── Hero ── */
+  .hero {
+    text-align: center; padding: 80px 24px 60px;
+  }
+  .hero-badge {
+    display: inline-block; background: rgba(124,58,237,.15); border: 1px solid rgba(124,58,237,.3);
+    color: #a78bfa; font-size: .75rem; letter-spacing: .12em; text-transform: uppercase;
+    padding: 6px 14px; border-radius: 20px; margin-bottom: 24px;
+    font-family: 'Space Mono', monospace;
+  }
+  .hero h1 {
+    font-size: clamp(2.5rem, 6vw, 4.5rem); font-weight: 800; letter-spacing: -.04em;
+    line-height: 1.05; margin-bottom: 20px;
+  }
+  .hero h1 em { font-style: normal; color: var(--accent2); }
+  .hero p { color: var(--muted); font-size: 1.1rem; max-width: 560px; margin: 0 auto 40px; }
+
+  /* ── Stats bar ── */
+  .stats-bar {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px;
+    background: var(--border); border: 1px solid var(--border); border-radius: var(--radius);
+    overflow: hidden; margin-bottom: 48px;
+  }
+  .stat {
+    background: var(--surface); padding: 20px 24px;
+    text-align: center;
+  }
+  .stat-val { font-size: 1.6rem; font-weight: 800; font-family: 'Space Mono', monospace; }
+  .stat-val.purple { color: var(--accent); }
+  .stat-val.cyan   { color: var(--accent2); }
+  .stat-val.gold   { color: var(--gold); }
+  .stat-val.green  { color: var(--green); }
+  .stat-label { font-size: .75rem; color: var(--muted); margin-top: 4px; text-transform: uppercase; letter-spacing: .08em; }
+
+  /* ── Tabs ── */
+  .tabs {
+    display: flex; gap: 4px; background: var(--surface);
+    border: 1px solid var(--border); border-radius: 10px;
+    padding: 4px; margin-bottom: 32px; flex-wrap: wrap;
+  }
+  .tab {
+    flex: 1; min-width: 120px; background: none; border: none; color: var(--muted);
+    padding: 10px 16px; border-radius: 7px; cursor: pointer; font-family: 'Syne', sans-serif;
+    font-size: .875rem; font-weight: 600; transition: all .2s;
+  }
+  .tab.active {
+    background: linear-gradient(135deg, var(--accent), #5b21b6);
+    color: #fff;
+  }
+  .tab:hover:not(.active) { color: var(--text); background: rgba(255,255,255,.05); }
+
+  /* ── Panels ── */
+  .panel { display: none; }
+  .panel.active { display: block; animation: fadeIn .3s ease; }
+  @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+
+  /* ── Cards ── */
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 28px; margin-bottom: 20px;
+  }
+  .card-title {
+    font-size: 1rem; font-weight: 700; letter-spacing: -.01em;
+    margin-bottom: 20px; display: flex; align-items: center; gap: 10px;
+  }
+  .card-icon { font-size: 1.2rem; }
+
+  /* ── Grid ── */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  @media(max-width:700px) { .grid-2 { grid-template-columns: 1fr; } }
+
+  /* ── Form ── */
+  .form-group { margin-bottom: 16px; }
+  label { display: block; font-size: .8rem; color: var(--muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: .06em; }
+  input, select {
+    width: 100%; background: rgba(255,255,255,.04); border: 1px solid var(--border);
+    color: var(--text); padding: 12px 14px; border-radius: 8px; font-family: 'Space Mono', monospace;
+    font-size: .875rem; transition: border-color .2s;
+  }
+  input:focus, select:focus { outline: none; border-color: var(--accent); }
+  select option { background: var(--surface); }
+
+  /* ── Buttons ── */
+  .btn {
+    width: 100%; padding: 13px 20px; border: none; border-radius: 8px; cursor: pointer;
+    font-family: 'Syne', sans-serif; font-size: .9rem; font-weight: 700;
+    transition: all .2s; letter-spacing: .02em;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--accent), #5b21b6); color: #fff;
+  }
+  .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 20px rgba(124,58,237,.3); }
+  .btn-secondary {
+    background: linear-gradient(135deg, var(--accent2), #0284c7); color: #fff;
+  }
+  .btn-gold {
+    background: linear-gradient(135deg, var(--gold), #d97706); color: #000;
+  }
+  .btn-green {
+    background: linear-gradient(135deg, var(--green), #059669); color: #fff;
+  }
+  .btn:disabled { opacity: .4; cursor: not-allowed; transform: none !important; }
+
+  /* ── NFT Grid ── */
+  .nft-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; }
+  .nft-card {
+    background: linear-gradient(135deg, rgba(124,58,237,.1), rgba(6,182,212,.05));
+    border: 1px solid rgba(124,58,237,.2); border-radius: 12px; padding: 20px;
+    text-align: center; transition: all .2s;
+  }
+  .nft-card:hover { transform: translateY(-3px); border-color: var(--accent); }
+  .nft-card .cert-icon { font-size: 3rem; margin-bottom: 12px; }
+  .nft-card .cert-name { font-size: .9rem; font-weight: 700; margin-bottom: 4px; }
+  .nft-card .cert-grade { font-family: 'Space Mono', monospace; color: var(--gold); font-size: .8rem; }
+  .nft-card .cert-date { color: var(--muted); font-size: .72rem; margin-top: 6px; }
+
+  /* ── Staking widget ── */
+  .staking-info {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px;
+  }
+  .s-stat { background: rgba(255,255,255,.03); border: 1px solid var(--border); border-radius: 8px; padding: 14px; }
+  .s-stat-val { font-family: 'Space Mono', monospace; font-size: 1.1rem; font-weight: 700; color: var(--accent2); }
+  .s-stat-lab { font-size: .72rem; color: var(--muted); margin-top: 4px; text-transform: uppercase; }
+
+  /* ── Governance ── */
+  .proposal {
+    background: rgba(255,255,255,.02); border: 1px solid var(--border);
+    border-radius: 10px; padding: 18px; margin-bottom: 12px;
+  }
+  .proposal-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
+  .proposal-title { font-weight: 700; font-size: .95rem; }
+  .badge {
+    font-family: 'Space Mono', monospace; font-size: .7rem; padding: 3px 10px; border-radius: 20px;
+  }
+  .badge-active  { background:rgba(16,185,129,.15); color:var(--green); border:1px solid rgba(16,185,129,.3); }
+  .badge-pending { background:rgba(245,158,11,.15); color:var(--gold); border:1px solid rgba(245,158,11,.3); }
+  .badge-closed  { background:rgba(100,116,139,.15); color:var(--muted); border:1px solid rgba(100,116,139,.3); }
+  .vote-bar { background: rgba(255,255,255,.05); border-radius: 4px; height: 6px; margin: 10px 0; overflow: hidden; }
+  .vote-fill { height: 100%; background: linear-gradient(90deg, var(--green), var(--accent2)); border-radius: 4px; transition: width .5s; }
+  .vote-counts { display: flex; justify-content: space-between; font-family: 'Space Mono', monospace; font-size: .72rem; color: var(--muted); }
+
+  /* ── Log ── */
+  #tx-log {
+    font-family: 'Space Mono', monospace; font-size: .76rem; line-height: 1.7;
+    background: rgba(0,0,0,.4); border: 1px solid var(--border); border-radius: 8px;
+    padding: 16px; max-height: 200px; overflow-y: auto; color: var(--muted);
+  }
+  .log-ok   { color: var(--green); }
+  .log-err  { color: var(--red); }
+  .log-info { color: var(--accent2); }
+
+  /* ── Oracle chip ── */
+  .oracle-chip {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: rgba(245,158,11,.1); border: 1px solid rgba(245,158,11,.2);
+    border-radius: 20px; padding: 6px 14px; font-size: .8rem;
+    font-family: 'Space Mono', monospace; color: var(--gold);
+  }
+</style>
+</head>
+<body>
+<div class="orb orb1"></div>
+<div class="orb orb2"></div>
+
+<!-- Header -->
+<header>
+  <div class="header-inner">
+    <div class="logo">Edu<span>Chain</span></div>
+    <div style="display:flex;align-items:center;gap:16px">
+      <div id="oracle-chip" class="oracle-chip" style="display:none">
+        ⛓ ETH/USD: <span id="eth-price">—</span>
+      </div>
+      <button id="connect-btn" onclick="connectWallet()">Conectar Carteira</button>
+    </div>
+  </div>
+</header>
+
+<!-- Status bar -->
+<div class="container">
+  <div id="status-bar">
+    <div class="dot"></div>
+    <span id="status-addr" style="color:var(--text)"></span>
+    <span style="color:var(--muted)">|</span>
+    <span>Saldo EDU: <span id="edu-balance" style="color:var(--accent2);font-weight:700">—</span></span>
+    <span style="color:var(--muted)">|</span>
+    <span>Rede: <span id="network-name" style="color:var(--gold)">—</span></span>
+  </div>
+</div>
+
+<!-- Hero -->
+<section class="hero container">
+  <div class="hero-badge">🎓 Protocolo Descentralizado de Estudos</div>
+  <h1>Aprenda. Conclua.<br/><em>Certifique na Chain.</em></h1>
+  <p>Cada certificado é um NFT imutável. Cada recompensa é um token real. Governança totalmente on-chain.</p>
+
+  <!-- Stats -->
+  <div class="stats-bar">
+    <div class="stat">
+      <div class="stat-val purple" id="stat-certs">—</div>
+      <div class="stat-label">Certificados Emitidos</div>
+    </div>
+    <div class="stat">
+      <div class="stat-val cyan" id="stat-students">—</div>
+      <div class="stat-label">Alunos Ativos</div>
+    </div>
+    <div class="stat">
+      <div class="stat-val gold" id="stat-courses">—</div>
+      <div class="stat-label">Cursos Disponíveis</div>
+    </div>
+    <div class="stat">
+      <div class="stat-val green" id="stat-staked">—</div>
+      <div class="stat-label">EDU em Stake</div>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs" style="text-align:left">
+    <button class="tab active" onclick="showTab('cursos')">📚 Cursos</button>
+    <button class="tab" onclick="showTab('certificados')">🏆 Certificados</button>
+    <button class="tab" onclick="showTab('staking')">💎 Staking</button>
+    <button class="tab" onclick="showTab('governanca')">🗳 Governança</button>
+    <button class="tab" onclick="showTab('admin')">⚙ Admin</button>
+  </div>
+</section>
+
+<!-- Panels -->
+<div class="container" style="padding-bottom:60px">
+
+  <!-- CURSOS -->
+  <div id="panel-cursos" class="panel active">
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title"><span class="card-icon">📚</span> Cursos Disponíveis</div>
+        <div id="courses-list">
+          <div style="color:var(--muted);font-size:.875rem">Conecte sua carteira para ver os cursos.</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title"><span class="card-icon">✍</span> Inscrever-se em um Curso</div>
+        <div class="form-group">
+          <label>Endereço do Aluno</label>
+          <input id="enroll-student" type="text" placeholder="0x..." />
+        </div>
+        <div class="form-group">
+          <label>ID do Curso</label>
+          <input id="enroll-course" type="number" value="0" min="0" />
+        </div>
+        <button class="btn btn-primary" onclick="enrollStudent()">Matricular Aluno</button>
+      </div>
+    </div>
+    <!-- Log -->
+    <div class="card">
+      <div class="card-title"><span class="card-icon">📋</span> Log de Transações</div>
+      <div id="tx-log">Aguardando transações...</div>
+    </div>
+  </div>
+
+  <!-- CERTIFICADOS -->
+  <div id="panel-certificados" class="panel">
+    <div class="card">
+      <div class="card-title"><span class="card-icon">🔍</span> Consultar Certificados</div>
+      <div style="display:flex;gap:12px;margin-bottom:20px">
+        <input id="cert-addr" type="text" placeholder="Endereço do aluno (0x...)" style="flex:1" />
+        <button class="btn btn-secondary" style="width:auto;padding:12px 24px" onclick="loadCertificates()">Buscar</button>
+      </div>
+      <div id="certs-grid" class="nft-grid">
+        <div style="color:var(--muted);font-size:.875rem">Digite um endereço e clique em Buscar.</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="card-icon">🎓</span> Emitir Certificado (Operador)</div>
+      <div class="grid-2">
+        <div>
+          <div class="form-group">
+            <label>Endereço do Aluno</label>
+            <input id="cert-student" type="text" placeholder="0x..." />
+          </div>
+          <div class="form-group">
+            <label>ID do Curso</label>
+            <input id="cert-course" type="number" value="0" min="0" />
+          </div>
+        </div>
+        <div>
+          <div class="form-group">
+            <label>Nome do Curso</label>
+            <input id="cert-name" type="text" placeholder="Blockchain Fundamentals" />
+          </div>
+          <div class="form-group">
+            <label>Nota Final (0–100)</label>
+            <input id="cert-grade" type="number" value="95" min="60" max="100" />
+          </div>
+        </div>
+      </div>
+      <button class="btn btn-gold" onclick="completeCourse()">Concluir Curso e Emitir Certificado</button>
+    </div>
+  </div>
+
+  <!-- STAKING -->
+  <div id="panel-staking" class="panel">
+    <div class="card">
+      <div class="card-title"><span class="card-icon">⛓</span> Oráculo Chainlink — ETH/USD</div>
+      <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+        <div class="oracle-chip" id="oracle-large">ETH/USD: <span id="eth-price-2">carregando...</span></div>
+        <div style="font-size:.85rem;color:var(--muted)">
+          APR Base: <strong style="color:var(--text)">12%</strong> &nbsp;|&nbsp;
+          Bônus (ETH &gt; $2500): <strong style="color:var(--green)">+3%</strong> &nbsp;|&nbsp;
+          APR Efetivo: <strong style="color:var(--accent2)" id="effective-apr">—</strong>
+        </div>
+      </div>
+    </div>
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title"><span class="card-icon">💎</span> Meu Staking</div>
+        <div class="staking-info">
+          <div class="s-stat">
+            <div class="s-stat-val" id="stake-amount">—</div>
+            <div class="s-stat-lab">Em Stake (EDU)</div>
+          </div>
+          <div class="s-stat">
+            <div class="s-stat-val" id="stake-rewards" style="color:var(--gold)">—</div>
+            <div class="s-stat-lab">Recompensas Pendentes</div>
+          </div>
+          <div class="s-stat">
+            <div class="s-stat-val" id="stake-apr" style="color:var(--green)">—</div>
+            <div class="s-stat-lab">APR Atual</div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Quantidade de EDU</label>
+          <input id="stake-input" type="number" placeholder="100" min="1" />
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <button class="btn btn-primary" onclick="doStake()">💎 Fazer Stake</button>
+          <button class="btn btn-secondary" onclick="claimRewards()">🎁 Sacar Recompensas</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title"><span class="card-icon">📤</span> Retirar Stake</div>
+        <p style="color:var(--muted);font-size:.85rem;margin-bottom:16px">
+          ⏳ Período de lock: <strong style="color:var(--text)">7 dias</strong> após o depósito.
+        </p>
+        <div class="form-group">
+          <label>Quantidade a Retirar (EDU)</label>
+          <input id="withdraw-input" type="number" placeholder="50" min="1" />
+        </div>
+        <button class="btn btn-gold" onclick="doWithdraw()">📤 Retirar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- GOVERNANÇA -->
+  <div id="panel-governanca" class="panel">
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title"><span class="card-icon">📝</span> Criar Proposta</div>
+        <p style="color:var(--muted);font-size:.82rem;margin-bottom:16px">
+          Necessário: <strong style="color:var(--text)">1.000 EDU</strong> para criar uma proposta.
+        </p>
+        <div class="form-group">
+          <label>Descrição da Proposta</label>
+          <input id="prop-desc" type="text" placeholder="Aumentar recompensa para 150 EDU..." />
+        </div>
+        <button class="btn btn-primary" onclick="createProposal()">🗳 Enviar Proposta</button>
+      </div>
+      <div class="card">
+        <div class="card-title"><span class="card-icon">🗳</span> Parâmetros da DAO</div>
+        <div style="font-family:'Space Mono',monospace;font-size:.8rem;line-height:2;color:var(--muted)">
+          <div>Threshold de Proposta: <span style="color:var(--text)">1.000 EDU</span></div>
+          <div>Período de Votação: <span style="color:var(--text)">3 dias</span></div>
+          <div>Quórum Mínimo: <span style="color:var(--text)">4% do supply</span></div>
+          <div>Timelock: <span style="color:var(--text)">1 dia</span></div>
+          <div>Total de Propostas: <span id="total-props" style="color:var(--accent2)">—</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="card-icon">📊</span> Propostas Ativas</div>
+      <div id="proposals-list">
+        <div style="color:var(--muted);font-size:.875rem">Conecte sua carteira para ver as propostas.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ADMIN -->
+  <div id="panel-admin" class="panel">
+    <div class="card" style="border-color:rgba(239,68,68,.2)">
+      <div class="card-title" style="color:var(--red)"><span class="card-icon">⚠</span> Painel Administrativo</div>
+      <p style="color:var(--muted);font-size:.85rem;margin-bottom:20px">Somente para contas com ADMIN_ROLE / OPERATOR_ROLE.</p>
+      <div class="grid-2">
+        <div>
+          <div class="card-title" style="font-size:.9rem">Criar Curso</div>
+          <div class="form-group">
+            <label>Nome do Curso</label>
+            <input id="course-name" type="text" placeholder="Solidity Avançado" />
+          </div>
+          <div class="form-group">
+            <label>Descrição</label>
+            <input id="course-desc" type="text" placeholder="Aprenda Solidity do zero..." />
+          </div>
+          <button class="btn btn-green" onclick="createCourse()">➕ Criar Curso</button>
+        </div>
+        <div>
+          <div class="card-title" style="font-size:.9rem">Mint EDU (Teste)</div>
+          <div class="form-group">
+            <label>Endereço Destino</label>
+            <input id="mint-addr" type="text" placeholder="0x..." />
+          </div>
+          <div class="form-group">
+            <label>Quantidade (EDU)</label>
+            <input id="mint-amount" type="number" placeholder="1000" />
+          </div>
+          <button class="btn btn-primary" onclick="mintEdu()">🪙 Mint EDU</button>
+        </div>
+      </div>
+    </div>
+    <!-- Endereços dos Contratos -->
+    <div class="card">
+      <div class="card-title"><span class="card-icon">📋</span> Endereços dos Contratos (Deployment)</div>
+      <div id="contract-addrs" style="font-family:'Space Mono',monospace;font-size:.78rem;line-height:2;color:var(--muted)">
+        Carregue o arquivo deployments/[chainId].json ou configure manualmente abaixo.
+      </div>
+      <div style="margin-top:16px">
+        <div class="form-group">
+          <label>JSON de Deployment (cole o conteúdo)</label>
+          <input id="deploy-json" type="text" placeholder='{"contracts":{"EduToken":"0x...", ...}}' />
+        </div>
+        <button class="btn btn-secondary" onclick="loadFromJson()">Carregar Contratos</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════
+//  EduChain dApp – Frontend Web3
+// ═══════════════════════════════════════════════════
+
+let provider, signer, userAddr;
+let contracts = {};
+
+// ABIs simplificados (apenas funções utilizadas na UI)
+const ABIS = {
+  EduToken: [
+    "function balanceOf(address) view returns(uint256)",
+    "function totalSupply() view returns(uint256)",
+    "function approve(address,uint256) returns(bool)",
+    "function mint(address,uint256)",
+    "function symbol() view returns(string)"
+  ],
+  EduCertificate: [
+    "function totalSupply() view returns(uint256)",
+    "function getCertificatesByStudent(address) view returns(uint256[])",
+    "function certificates(uint256) view returns(address student, uint256 courseId, uint256 issuedAt, string courseName, uint8 grade)"
+  ],
+  EduCourse: [
+    "function courseCount() view returns(uint256)",
+    "function courses(uint256) view returns(string name,string description,uint256 enrollmentTokenId,uint256 badgeTokenId,uint256 price,bool active,address instructor,uint256 enrolledCount)"
+  ],
+  EduStaking: [
+    "function getEthUsdPrice() view returns(uint256)",
+    "function effectiveApr() view returns(uint256)",
+    "function totalStaked() view returns(uint256)",
+    "function stakes(address) view returns(uint256 amount,uint256 stakedAt,uint256 lastClaimedAt,uint256 rewardDebt)",
+    "function pendingRewards(address) view returns(uint256)",
+    "function stake(uint256)",
+    "function withdraw(uint256)",
+    "function claimRewards()"
+  ],
+  EduGovernance: [
+    "function proposalCount() view returns(uint256)",
+    "function proposals(uint256) view returns(uint256 id,address proposer,string description,address target,bytes callData,uint256 forVotes,uint256 againstVotes,uint256 startTime,uint256 endTime,uint256 supplySnapshot,uint256 eta,bool executed,bool cancelled)",
+    "function propose(string,address,bytes) returns(uint256)",
+    "function castVote(uint256,bool)",
+    "function state(uint256) view returns(uint8)"
+  ],
+  EduPlatform: [
+    "function enrollStudent(address,uint256)",
+    "function completeCourse(address,uint256,string,uint8,string) returns(uint256)"
+  ]
+};
+
+const STATE_LABELS = ['Pending','Active','Defeated','Succeeded','Queued','Executed','Cancelled'];
+const STATE_BADGES = ['badge-pending','badge-active','badge-closed','badge-active','badge-pending','badge-closed','badge-closed'];
+
+// ─── Conexão ──────────────────────────────────────────────────────────────────
+async function connectWallet() {
+  if (!window.ethereum) {
+    logTx("MetaMask não detectado. Instale em metamask.io", "err");
+    return;
+  }
+  try {
+    await window.ethereum.request({ method: 'eth_requestAccounts' });
+    provider = new ethers.providers.Web3Provider(window.ethereum);
+    signer   = provider.getSigner();
+    userAddr = await signer.getAddress();
+
+    const network = await provider.getNetwork();
+    document.getElementById('connect-btn').textContent = shortAddr(userAddr);
+    document.getElementById('connect-btn').classList.add('connected');
+    document.getElementById('status-bar').classList.add('visible');
+    document.getElementById('status-addr').textContent = shortAddr(userAddr);
+    document.getElementById('network-name').textContent = network.name || `Chain ${network.chainId}`;
+
+    await refreshAll();
+    logTx(`Conectado: ${userAddr}`, 'ok');
+
+    window.ethereum.on('accountsChanged', () => location.reload());
+    window.ethereum.on('chainChanged',    () => location.reload());
+  } catch(e) {
+    logTx("Erro ao conectar: " + e.message, 'err');
+  }
+}
+
+function loadContracts(addrs) {
+  const c = addrs.contracts || addrs;
+  if (!provider) return;
+  for (const [name, addr] of Object.entries(c)) {
+    if (ABIS[name] && addr) {
+      contracts[name] = new ethers.Contract(addr, ABIS[name], signer || provider);
+    }
+  }
+  showContractAddrs(c);
+}
+
+function showContractAddrs(c) {
+  const el = document.getElementById('contract-addrs');
+  el.innerHTML = Object.entries(c).map(([k,v]) =>
+    `<div><span style="color:var(--accent2)">${k.padEnd(20,' ')}</span> ${v}</div>`
+  ).join('');
+}
+
+// ─── Refresh ──────────────────────────────────────────────────────────────────
+async function refreshAll() {
+  await Promise.allSettled([
+    refreshBalance(),
+    refreshStats(),
+    refreshOracle(),
+    refreshCourses(),
+    refreshStaking(),
+    refreshGovernance()
+  ]);
+}
+
+async function refreshBalance() {
+  if (!contracts.EduToken || !userAddr) return;
+  try {
+    const bal = await contracts.EduToken.balanceOf(userAddr);
+    document.getElementById('edu-balance').textContent =
+      parseFloat(ethers.utils.formatEther(bal)).toFixed(2) + ' EDU';
+  } catch {}
+}
+
+async function refreshStats() {
+  try {
+    if (contracts.EduCertificate) {
+      const total = await contracts.EduCertificate.totalSupply();
+      document.getElementById('stat-certs').textContent = total.toString();
+    }
+    if (contracts.EduCourse) {
+      const cc = await contracts.EduCourse.courseCount();
+      document.getElementById('stat-courses').textContent = cc.toString();
+    }
+    if (contracts.EduStaking) {
+      const ts = await contracts.EduStaking.totalStaked();
+      document.getElementById('stat-staked').textContent =
+        parseFloat(ethers.utils.formatEther(ts)).toFixed(0) + ' EDU';
+    }
+  } catch {}
+}
+
+async function refreshOracle() {
+  if (!contracts.EduStaking) return;
+  try {
+    const price = await contracts.EduStaking.getEthUsdPrice();
+    const apr   = await contracts.EduStaking.effectiveApr();
+    const pStr  = '$' + parseFloat(ethers.utils.formatUnits(price, 8)).toLocaleString('pt-BR', {minimumFractionDigits:2});
+    const aStr  = (apr.toNumber() / 100).toFixed(2) + '%';
+
+    ['eth-price','eth-price-2'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = pStr;
+    });
+    document.getElementById('oracle-chip').style.display = 'inline-flex';
+    document.getElementById('effective-apr').textContent = aStr;
+    document.getElementById('stake-apr').textContent     = aStr;
+  } catch {}
+}
+
+async function refreshCourses() {
+  if (!contracts.EduCourse) return;
+  try {
+    const count = await contracts.EduCourse.courseCount();
+    const list  = document.getElementById('courses-list');
+    if (count.toNumber() === 0) {
+      list.innerHTML = '<div style="color:var(--muted);font-size:.875rem">Nenhum curso disponível.</div>';
+      return;
+    }
+    let html = '';
+    for (let i = 0; i < Math.min(count.toNumber(), 10); i++) {
+      const c = await contracts.EduCourse.courses(i);
+      html += `
+        <div style="background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:10px">
+          <div style="font-weight:700;margin-bottom:4px">#${i} — ${c.name}</div>
+          <div style="font-size:.8rem;color:var(--muted);margin-bottom:8px">${c.description}</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <span style="font-size:.72rem;font-family:'Space Mono',monospace;color:var(--accent2)">
+              👥 ${c.enrolledCount} alunos
+            </span>
+            <span style="font-size:.72rem;font-family:'Space Mono',monospace;color:${c.active?'var(--green)':'var(--red)'}">
+              ${c.active ? '✅ Ativo' : '❌ Inativo'}
+            </span>
+          </div>
+        </div>`;
+    }
+    list.innerHTML = html;
+    document.getElementById('stat-students').textContent = count.toString();
+  } catch(e) { console.error(e); }
+}
+
+async function refreshStaking() {
+  if (!contracts.EduStaking || !userAddr) return;
+  try {
+    const info    = await contracts.EduStaking.stakes(userAddr);
+    const pending = await contracts.EduStaking.pendingRewards(userAddr);
+    document.getElementById('stake-amount').textContent =
+      parseFloat(ethers.utils.formatEther(info.amount)).toFixed(2);
+    document.getElementById('stake-rewards').textContent =
+      parseFloat(ethers.utils.formatEther(pending)).toFixed(4);
+  } catch {}
+}
+
+async function refreshGovernance() {
+  if (!contracts.EduGovernance) return;
+  try {
+    const count = await contracts.EduGovernance.proposalCount();
+    document.getElementById('total-props').textContent = count.toString();
+    if (count.toNumber() === 0) return;
+
+    let html = '';
+    for (let i = 0; i < Math.min(count.toNumber(), 5); i++) {
+      const p   = await contracts.EduGovernance.proposals(i);
+      const st  = await contracts.EduGovernance.state(i);
+      const stN = st.toNumber();
+      const total = p.forVotes.add(p.againstVotes);
+      const pct   = total.gt(0)
+        ? p.forVotes.mul(100).div(total).toNumber()
+        : 0;
+
+      html += `
+        <div class="proposal">
+          <div class="proposal-header">
+            <div class="proposal-title">#${i} — ${p.description}</div>
+            <span class="badge ${STATE_BADGES[stN]}">${STATE_LABELS[stN]}</span>
+          </div>
+          <div class="vote-bar"><div class="vote-fill" style="width:${pct}%"></div></div>
+          <div class="vote-counts">
+            <span>✅ SIM: ${parseFloat(ethers.utils.formatEther(p.forVotes)).toFixed(0)} EDU</span>
+            <span>${pct}% favor</span>
+            <span>❌ NÃO: ${parseFloat(ethers.utils.formatEther(p.againstVotes)).toFixed(0)} EDU</span>
+          </div>
+          ${stN === 1 ? `
+            <div style="display:flex;gap:10px;margin-top:12px">
+              <button class="btn btn-green" style="padding:8px 16px;font-size:.8rem" onclick="vote(${i},true)">✅ Votar SIM</button>
+              <button class="btn" style="background:rgba(239,68,68,.2);color:var(--red);padding:8px 16px;font-size:.8rem" onclick="vote(${i},false)">❌ Votar NÃO</button>
+            </div>` : ''}
+        </div>`;
+    }
+    document.getElementById('proposals-list').innerHTML = html;
+  } catch(e) { console.error(e); }
+}
+
+// ─── Ações ────────────────────────────────────────────────────────────────────
+async function enrollStudent() {
+  if (!contracts.EduPlatform) return noContracts();
+  const student  = document.getElementById('enroll-student').value;
+  const courseId = document.getElementById('enroll-course').value;
+  try {
+    logTx(`Matriculando ${shortAddr(student)} no curso #${courseId}...`, 'info');
+    const tx = await contracts.EduPlatform.enrollStudent(student, courseId);
+    await tx.wait();
+    logTx(`✅ Matrícula confirmada! TX: ${shortAddr(tx.hash)}`, 'ok');
+    await refreshAll();
+  } catch(e) { logTx('❌ ' + extractErr(e), 'err'); }
+}
+
+async function completeCourse() {
+  if (!contracts.EduPlatform) return noContracts();
+  const student  = document.getElementById('cert-student').value;
+  const courseId = document.getElementById('cert-course').value;
+  const name     = document.getElementById('cert-name').value || 'Curso EduChain';
+  const grade    = parseInt(document.getElementById('cert-grade').value);
+  const uri      = `ipfs://QmEduChainCert${Date.now()}`;
+  try {
+    logTx(`Emitindo certificado para ${shortAddr(student)}...`, 'info');
+    const tx = await contracts.EduPlatform.completeCourse(student, courseId, name, grade, uri);
+    const rc = await tx.wait();
+    logTx(`🎓 Certificado NFT emitido! TX: ${shortAddr(tx.hash)}`, 'ok');
+    await refreshAll();
+  } catch(e) { logTx('❌ ' + extractErr(e), 'err'); }
+}
+
+async function loadCertificates() {
+  if (!contracts.EduCertificate) return noContracts();
+  const addr = document.getElementById('cert-addr').value || userAddr;
+  if (!addr) return;
+  try {
+    const ids  = await contracts.EduCertificate.getCertificatesByStudent(addr);
+    if (ids.length === 0) {
+      document.getElementById('certs-grid').innerHTML =
+        '<div style="color:var(--muted)">Nenhum certificado encontrado.</div>';
+      return;
+    }
+    let html = '';
+    for (const id of ids) {
+      const c = await contracts.EduCertificate.certificates(id);
+      const d = new Date(c.issuedAt.toNumber() * 1000).toLocaleDateString('pt-BR');
+      html += `
+        <div class="nft-card">
+          <div class="cert-icon">🎓</div>
+          <div class="cert-name">${c.courseName}</div>
+          <div class="cert-grade">Nota: ${c.grade}/100</div>
+          <div style="font-size:.72rem;color:var(--muted);margin-top:6px">Token #${id.toString()}</div>
+          <div class="cert-date">📅 ${d}</div>
+        </div>`;
+    }
+    document.getElementById('certs-grid').innerHTML = html;
+  } catch(e) { logTx('❌ ' + extractErr(e), 'err'); }
+}
+
+async function doStake() {
+  if (!contracts.EduStaking || !contracts.EduToken) return noContracts();
+  const amt = ethers.utils.parseEther(document.getElementById('stake-input').value || '0');
+  try {
+    logTx(`Aprovando ${ethers.utils.formatEther(amt)} EDU para staking...`, 'info');
+    const tx1 = await contracts.EduToken.approve(contracts.EduStaking.address, amt);
+    await tx1.wait();
+    logTx(`Fazendo stake de ${ethers.utils.formatEther(amt)} EDU...`, 'info');
+    const tx2 = await contracts.EduStaking.stake(amt);
+    await tx2.wait();
+    logTx(`✅ Stake confirmado! TX: ${shortAddr(tx2.hash)}`, 'ok');
+    await refreshAll();
+  } catch(e) { logTx('❌ ' + extractErr(e), 'err'); }
+}
+
+async function doWithdraw() {
+  if (!contracts.EduStaking) return noContracts();
+  const amt = ethers.utils.parseEther(document.getElementById('withdraw-input').value || '0');
+  try {
+    logTx(`Retirando ${ethers.utils.formatEther(amt)} EDU do staking...`, 'info');
+    const tx = await contracts.EduStaking.withdraw(amt);
+    await tx.wait();
+    logTx(`✅ Saque confirmado! TX: ${shortAddr(tx.hash)}`, 'ok');
+    await refreshAll();
+  } catch(e) { logTx('❌ ' + extractErr(e), 'err'); }
+}
+
+async function claimRewards() {
+  if (!contracts.EduStaking) return noContracts();
+  try {
+    logTx('Sacando recompensas de staking...', 'info');
+    const tx = await contracts.EduStaking.claimRewards();
+    await tx.wait();
+    logTx(`🎁 Recompensas sacadas! TX: ${shortAddr(tx.hash)}`, 'ok');
+    await refreshAll();
+  } catch(e) { logTx('❌ ' + extractErr(e), 'err'); }
+}
+
+async function createProposal() {
+  if (!contracts.EduGovernance) return noContracts();
+  const desc = document.getElementById('prop-desc').value;
+  if (!desc) return logTx('❌ Informe a descrição da proposta.', 'err');
+  try {
+    logTx(`Criando proposta: "${desc}"...`, 'info');
+    const tx = await contracts.EduGovernance.propose(desc, ethers.constants.AddressZero, '0x');
+    await tx.wait();
+    logTx(`✅ Proposta criada! TX: ${shortAddr(tx.hash)}`, 'ok');
+    await refreshGovernance();
+  } catch(e) { logTx('❌ ' + extractErr(e), 'err'); }
+}
+
+async function vote(id, support) {
+  if (!contracts.EduGovernance) return noContracts();
+  try {
+    logTx(`Votando ${support?'SIM':'NÃO'} na proposta #${id}...`, 'info');
+    const tx = await contracts.EduGovernance.castVote(id, support);
+    await tx.wait();
+    logTx(`✅ Voto registrado! TX: ${shortAddr(tx.hash)}`, 'ok');
+    await refreshGovernance();
+  } catch(e) { logTx('❌ ' + extractErr(e), 'err'); }
+}
+
+async function createCourse() {
+  if (!contracts.EduCourse) return noContracts();
+  const name = document.getElementById('course-name').value;
+  const desc = document.getElementById('course-desc').value;
+  if (!name) return logTx('❌ Informe o nome do curso.', 'err');
+  try {
+    logTx(`Criando curso: "${name}"...`, 'info');
+    const EduCourseABI = [
+      "function createCourse(string,string,uint256,address)"
+    ];
+    const c = new ethers.Contract(contracts.EduCourse.address, EduCourseABI, signer);
+    const tx = await c.createCourse(name, desc, 0, userAddr);
+    await tx.wait();
+    logTx(`✅ Curso criado! TX: ${shortAddr(tx.hash)}`, 'ok');
+    await refreshCourses();
+  } catch(e) { logTx('❌ ' + extractErr(e), 'err'); }
+}
+
+async function mintEdu() {
+  if (!contracts.EduToken) return noContracts();
+  const addr = document.getElementById('mint-addr').value || userAddr;
+  const amt  = ethers.utils.parseEther(document.getElementById('mint-amount').value || '0');
+  try {
+    logTx(`Mintando ${ethers.utils.formatEther(amt)} EDU para ${shortAddr(addr)}...`, 'info');
+    const tx = await contracts.EduToken.mint(addr, amt);
+    await tx.wait();
+    logTx(`✅ EDU mintados! TX: ${shortAddr(tx.hash)}`, 'ok');
+    await refreshBalance();
+  } catch(e) { logTx('❌ ' + extractErr(e), 'err'); }
+}
+
+function loadFromJson() {
+  try {
+    const raw  = document.getElementById('deploy-json').value;
+    const data = JSON.parse(raw);
+    loadContracts(data);
+    logTx('✅ Contratos carregados com sucesso!', 'ok');
+    refreshAll();
+  } catch(e) { logTx('❌ JSON inválido: ' + e.message, 'err'); }
+}
+
+// ─── UI Helpers ───────────────────────────────────────────────────────────────
+function showTab(name) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('panel-' + name).classList.add('active');
+  event.target.classList.add('active');
+}
+
+function logTx(msg, type = 'info') {
+  const log = document.getElementById('tx-log');
+  const cls = type === 'ok' ? 'log-ok' : type === 'err' ? 'log-err' : 'log-info';
+  const ts  = new Date().toLocaleTimeString('pt-BR');
+  log.innerHTML += `<div class="${cls}">[${ts}] ${msg}</div>`;
+  log.scrollTop  = log.scrollHeight;
+}
+
+function shortAddr(addr) {
+  if (!addr || addr.length < 10) return addr;
+  return addr.slice(0,6) + '…' + addr.slice(-4);
+}
+
+function extractErr(e) {
+  return e?.data?.message || e?.reason || e?.message || 'Erro desconhecido';
+}
+
+function noContracts() {
+  logTx('⚠ Contratos não carregados. Configure no painel Admin.', 'err');
+}
+
+// Auto-detect hardhat local deployment
+window.addEventListener('load', async () => {
+  if (window.ethereum) {
+    provider = new ethers.providers.Web3Provider(window.ethereum);
+    // tenta carregar deployment local automaticamente
+    try {
+      const network = await provider.getNetwork();
+      const resp = await fetch(`../deployments/${network.chainId}.json`);
+      if (resp.ok) {
+        const data = await resp.json();
+        signer = provider.getSigner();
+        loadContracts(data);
+        logTx(`📦 Deployment detectado (chainId: ${network.chainId})`, 'info');
+      }
+    } catch {}
+  }
+});
+</script>
+</body>
+</html>
