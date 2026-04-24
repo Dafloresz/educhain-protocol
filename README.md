@@ -2,6 +2,10 @@
 
 Plataforma descentralizada de estudos que emite **certificados NFT** ao concluir cursos, com sistema de **staking de recompensas** e **governança DAO on-chain**.
 
+## Demonstração
+https://www.youtube.com/watch?v=kOn99O7CxXw
+
+
 ## Visão Geral do Protocolo
 
 ```
